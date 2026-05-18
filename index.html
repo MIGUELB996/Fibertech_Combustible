@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Combustible — FiberTech</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ── Reset & Variables ── */
+:root {
+  --azul:       #1a3a5c;
+  --azul2:      #2563a8;
+  --azul-light: #dbeafe;
+  --verde:      #0f6e56;
+  --verde-light:#e1f5ee;
+  --naranja:    #d97706;
+  --naranja-light: #fef3c7;
+  --rojo:       #dc2626;
+  --rojo-light: #fee2e2;
+  --gris0:      #f8fafc;
+  --gris1:      #f1f5f9;
+  --gris2:      #e2e8f0;
+  --gris3:      #94a3b8;
+  --texto:      #0f172a;
+  --texto2:     #64748b;
+  --blanco:     #ffffff;
+  --sidebar-w:  220px;
+  --radius:     12px;
+  --shadow:     0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gris1); color: var(--texto); min-height: 100vh; }
+
+/* ── LAYOUT ── */
+.layout { display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--azul); color: white;
+  display: flex; flex-direction: column; position: fixed; top: 0; left: 0;
+  height: 100vh; z-index: 100;
+}
+.sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.sidebar-logo p  { font-size: 11px; opacity: 0.6; margin-top: 3px; }
+.sidebar-nav { flex: 1; padding: 16px 12px; }
+.nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.45; padding: 0 8px; margin-bottom: 6px; margin-top: 14px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px; padding: 9px 10px;
+  border-radius: 8px; cursor: pointer; font-size: 14px; opacity: 0.75;
+  transition: all 0.15s; margin-bottom: 2px;
+}
+.nav-item:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+.nav-item.active { background: rgba(255,255,255,0.15); opacity: 1; font-weight: 600; }
+.nav-ico { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; opacity: 0.5; }
+
+/* ── MAIN ── */
+.main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+.topbar {
+  background: white; border-bottom: 1px solid var(--gris2); padding: 0 28px;
+  height: 60px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-size: 17px; font-weight: 600; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.period-select {
+  border: 1px solid var(--gris2); border-radius: 8px; padding: 6px 12px;
+  font-size: 13px; color: var(--texto); background: white; cursor: pointer; outline: none;
+}
+.refresh-btn {
+  border: 1px solid var(--gris2); border-radius: 8px; padding: 6px 12px;
+  font-size: 13px; background: white; cursor: pointer; transition: background 0.15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.refresh-btn:hover { background: var(--gris1); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 3px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── PÁGINAS ── */
+.page { display: none; padding: 28px; }
+.page.active { display: block; }
+
+/* ── MÉTRICAS ── */
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.metric-card {
+  background: white; border-radius: var(--radius); padding: 18px 20px;
+  box-shadow: var(--shadow); border: 1px solid var(--gris2);
+}
+.metric-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.metric-ico { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+.metric-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
+.badge-up   { background: var(--rojo-light);   color: var(--rojo); }
+.badge-down { background: var(--verde-light);  color: var(--verde); }
+.badge-neu  { background: var(--gris1);        color: var(--gris3); }
+.metric-val { font-size: 26px; font-weight: 700; color: var(--texto); letter-spacing: -0.5px; }
+.metric-lbl { font-size: 12px; color: var(--texto2); margin-top: 3px; }
+
+/* ── CARDS ── */
+.card {
+  background: white; border-radius: var(--radius); padding: 20px 22px;
+  box-shadow: var(--shadow); border: 1px solid var(--gris2); margin-bottom: 16px;
+}
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--texto); }
+.card-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+
+/* ── GRID CHARTS ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+
+/* ── VEHÍCULOS ── */
+.veh-list { display: flex; flex-direction: column; gap: 0; }
+.veh-row {
+  display: flex; align-items: center; gap: 14px; padding: 12px 0;
+  border-bottom: 1px solid var(--gris2);
+}
+.veh-row:last-child { border-bottom: none; }
+.veh-ico { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.veh-info { flex: 1; }
+.veh-name { font-size: 14px; font-weight: 600; }
+.veh-crew { font-size: 12px; color: var(--texto2); margin-top: 1px; }
+.veh-bar-wrap { width: 120px; }
+.veh-bar-bg { height: 6px; background: var(--gris2); border-radius: 3px; overflow: hidden; }
+.veh-bar-fill { height: 6px; border-radius: 3px; }
+.veh-num { font-size: 14px; font-weight: 600; min-width: 54px; text-align: right; }
+.badge-pill { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 600; }
+
+/* ── TABLA ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--texto2); padding: 8px 10px; border-bottom: 1px solid var(--gris2);
+  text-align: left; font-weight: 600; white-space: nowrap;
+}
+tbody td { padding: 10px 10px; border-bottom: 1px solid var(--gris2); color: var(--texto); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--gris0); }
+
+/* ── FILTROS ── */
+.filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.filter-grp label { font-size: 11px; color: var(--texto2); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.filter-grp select { border: 1px solid var(--gris2); border-radius: 8px; padding: 7px 12px; font-size: 13px; color: var(--texto); background: white; outline: none; cursor: pointer; }
+
+/* ── RANKING ── */
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--gris2); }
+.rank-item:last-child { border-bottom: none; }
+.rank-num { font-size: 18px; font-weight: 700; width: 30px; color: var(--gris3); }
+.rank-num.gold   { color: #f59e0b; }
+.rank-num.silver { color: #94a3b8; }
+.rank-num.bronze { color: #b45309; }
+.rank-info { flex: 1; }
+.rank-name { font-size: 14px; font-weight: 600; }
+.rank-detail { font-size: 12px; color: var(--texto2); }
+.rank-val { font-size: 15px; font-weight: 700; }
+
+/* ── LEGEND ── */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--texto2); }
+.legend-sq { width: 10px; height: 10px; border-radius: 2px; }
+
+/* ── BANNER CONFIG ── */
+.config-banner {
+  background: linear-gradient(135deg, var(--azul) 0%, var(--azul2) 100%);
+  border-radius: var(--radius); padding: 24px 28px; color: white; margin-bottom: 20px;
+}
+.config-banner h2 { font-size: 18px; margin-bottom: 6px; }
+.config-banner p  { font-size: 13px; opacity: 0.8; line-height: 1.6; }
+.config-steps { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.config-step { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 14px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+.step-num { background: rgba(255,255,255,0.2); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+input.config-input {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px; padding: 10px 14px; color: white; font-size: 14px; width: 100%; margin-top: 8px;
+  outline: none;
+}
+input.config-input::placeholder { color: rgba(255,255,255,0.5); }
+.btn-conectar {
+  margin-top: 14px; background: white; color: var(--azul); border: none;
+  border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.btn-conectar:hover { opacity: 0.9; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>⛽ FiberTech</h1>
+      <p>Control de combustible</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Principal</div>
+      <div class="nav-item active" onclick="navegar('resumen', this)">
+        <span class="nav-ico">📊</span> Resumen
+      </div>
+      <div class="nav-item" onclick="navegar('vehiculos', this)">
+        <span class="nav-ico">🚐</span> Vehículos
+      </div>
+      <div class="nav-item" onclick="navegar('cuadrillas', this)">
+        <span class="nav-ico">👷</span> Cuadrillas
+      </div>
+      <div class="nav-item" onclick="navegar('historial', this)">
+        <span class="nav-ico">📋</span> Historial
+      </div>
+      <div class="nav-label">Sistema</div>
+      <div class="nav-item" onclick="navegar('configuracion', this)">
+        <span class="nav-ico">⚙️</span> Configuración
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      v1.0 · FiberTech 2025
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbarTitle">Resumen general</div>
+      </div>
+      <div class="topbar-right">
+        <select class="period-select" id="selectPeriodo" onchange="cambiarPeriodo(this.value)">
+          <option value="mayo">Mayo 2025</option>
+          <option value="abril">Abril 2025</option>
+          <option value="marzo">Marzo 2025</option>
+        </select>
+        <button class="refresh-btn" onclick="cargarDatos()">
+          <span id="refreshIco">🔄</span> Actualizar
+        </button>
+        <span style="font-size:12px; color: var(--texto2);">
+          <span class="live-dot"></span>En vivo
+        </span>
+      </div>
+    </div>
+
+    <!-- ===== PÁGINA RESUMEN ===== -->
+    <section id="page-resumen" class="page active">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-ico" style="background:var(--azul-light);">💧</div>
+            <span class="metric-badge badge-up" id="badge-total">+12%</span>
+          </div>
+          <div class="metric-val" id="met-total">847 L</div>
+          <div class="metric-lbl">Total combustible</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-ico" style="background:var(--verde-light);">💵</div>
+            <span class="metric-badge badge-down" id="badge-costo">-3%</span>
+          </div>
+          <div class="metric-val" id="met-costo">$1,186</div>
+          <div class="metric-lbl">Costo total del mes</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-ico" style="background:var(--naranja-light);">🛣️</div>
+            <span class="metric-badge badge-neu">0%</span>
+          </div>
+          <div class="metric-val" id="met-km">6,340</div>
+          <div class="metric-lbl">Km recorridos</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-ico" style="background:#f3e8ff;">⚡</div>
+            <span class="metric-badge badge-down">+5%</span>
+          </div>
+          <div class="metric-val" id="met-efic">13.4</div>
+          <div class="metric-lbl">L/100km promedio flota</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Consumo diario por vehículo</div>
+              <div class="card-sub">Litros por día — mayo 2025</div>
+            </div>
+          </div>
+          <div class="legend" id="legendDiario"></div>
+          <div style="position:relative; width:100%; height:220px;">
+            <canvas id="chartDiario" role="img" aria-label="Gráfica de líneas de consumo diario de combustible">Consumo diario de cada vehículo en mayo 2025.</canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Participación por vehículo</div>
+              <div class="card-sub">% del total consumido</div>
+            </div>
+          </div>
+          <div style="position:relative; width:100%; height:240px; display:flex; align-items:center;">
+            <canvas id="chartDonut" role="img" aria-label="Gráfica de dona con distribución de consumo por vehículo">C001: 35%, C002: 28%, C003: 25%, Moto001: 12%.</canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Consumo mensual — comparativo histórico</div>
+            <div class="card-sub">Litros totales por mes</div>
+          </div>
+        </div>
+        <div style="position:relative; width:100%; height:200px;">
+          <canvas id="chartMensual" role="img" aria-label="Gráfica de barras de consumo mensual histórico">Consumo de enero a mayo 2025.</canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PÁGINA VEHÍCULOS ===== -->
+    <section id="page-vehiculos" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header"><div class="metric-ico" style="background:var(--azul-light);">🚐</div></div>
+          <div class="metric-val">C001</div>
+          <div class="metric-lbl">Mayor consumidor · 296 L</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><div class="metric-ico" style="background:var(--verde-light);">🏆</div></div>
+          <div class="metric-val">Moto001</div>
+          <div class="metric-lbl">Más eficiente · 6.5 L/100km</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><div class="metric-ico" style="background:var(--naranja-light);">⚠️</div></div>
+          <div class="metric-val">C001</div>
+          <div class="metric-lbl">Requiere revisión técnica</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><div class="metric-ico" style="background:#f3e8ff;">📊</div></div>
+          <div class="metric-val">11.3</div>
+          <div class="metric-lbl">L/100km promedio vans</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Consumo total por vehículo</div></div>
+          <div style="position:relative; height:220px;">
+            <canvas id="chartVehBar" role="img" aria-label="Barras de consumo total por vehículo">C001 296L, C002 237L, C003 213L, Moto001 101L.</canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Eficiencia L/100km</div></div>
+          <div style="position:relative; height:220px;">
+            <canvas id="chartEfic" role="img" aria-label="Barras horizontales de eficiencia de cada vehículo">Moto001 6.5, C003 10.8, C002 11.7, C001 13.5.</canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Detalle por vehículo</div></div>
+        <div class="veh-list">
+          <div class="veh-row">
+            <div class="veh-ico" style="background:#dbeafe;">🚐</div>
+            <div class="veh-info"><div class="veh-name">C001</div><div class="veh-crew">Cuadrilla A · Proyecto Norte</div></div>
+            <div class="veh-bar-wrap"><div class="veh-bar-bg"><div class="veh-bar-fill" style="width:100%; background:#2563a8;"></div></div></div>
+            <div class="veh-num">296 L</div>
+            <span class="badge-pill" style="background:var(--rojo-light); color:var(--rojo);">Alto consumo</span>
+          </div>
+          <div class="veh-row">
+            <div class="veh-ico" style="background:var(--verde-light);">🚐</div>
+            <div class="veh-info"><div class="veh-name">C002</div><div class="veh-crew">Cuadrilla B · Proyecto Sur</div></div>
+            <div class="veh-bar-wrap"><div class="veh-bar-bg"><div class="veh-bar-fill" style="width:80%; background:#0f6e56;"></div></div></div>
+            <div class="veh-num">237 L</div>
+            <span class="badge-pill" style="background:var(--verde-light); color:var(--verde);">Eficiente</span>
+          </div>
+          <div class="veh-row">
+            <div class="veh-ico" style="background:var(--naranja-light);">🚐</div>
+            <div class="veh-info"><div class="veh-name">C003</div><div class="veh-crew">Cuadrilla C · Proyecto Centro</div></div>
+            <div class="veh-bar-wrap"><div class="veh-bar-bg"><div class="veh-bar-fill" style="width:72%; background:#d97706;"></div></div></div>
+            <div class="veh-num">213 L</div>
+            <span class="badge-pill" style="background:var(--verde-light); color:var(--verde);">Eficiente</span>
+          </div>
+          <div class="veh-row">
+            <div class="veh-ico" style="background:#fdf2f8;">🏍️</div>
+            <div class="veh-info"><div class="veh-name">Moto001</div><div class="veh-crew">Técnico móvil · Multi-proyecto</div></div>
+            <div class="veh-bar-wrap"><div class="veh-bar-bg"><div class="veh-bar-fill" style="width:34%; background:#9333ea;"></div></div></div>
+            <div class="veh-num">101 L</div>
+            <span class="badge-pill" style="background:#f3e8ff; color:#7e22ce;">Óptimo</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PÁGINA CUADRILLAS ===== -->
+    <section id="page-cuadrillas" class="page">
+      <div class="grid3">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cuadrilla A</div></div>
+          <div style="font-size:28px; font-weight:700; color:var(--azul2);">296 L</div>
+          <div style="font-size:12px; color:var(--texto2); margin-top:4px;">Proyecto Norte · Vehículo C001</div>
+          <div style="margin-top:12px; font-size:13px; color:var(--rojo);">⚠️ Consumo por encima del promedio</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cuadrilla B</div></div>
+          <div style="font-size:28px; font-weight:700; color:var(--verde);">237 L</div>
+          <div style="font-size:12px; color:var(--texto2); margin-top:4px;">Proyecto Sur · Vehículo C002</div>
+          <div style="margin-top:12px; font-size:13px; color:var(--verde);">✅ Consumo dentro del rango óptimo</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cuadrilla C</div></div>
+          <div style="font-size:28px; font-weight:700; color:var(--naranja);">213 L</div>
+          <div style="font-size:12px; color:var(--texto2); margin-top:4px;">Proyecto Centro · Vehículo C003</div>
+          <div style="margin-top:12px; font-size:13px; color:var(--verde);">✅ Mejor eficiencia del mes</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Consumo comparativo por cuadrilla</div>
+            <div class="card-sub">Litros vs km recorridos</div>
+          </div>
+        </div>
+        <div style="position:relative; height:220px;">
+          <canvas id="chartCuadrillas" role="img" aria-label="Comparativo de consumo y km por cuadrilla">Cuadrilla A 296L 2180km, B 237L 2060km, C 213L 1890km.</canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Ranking de eficiencia (L/100km)</div></div>
+        <div class="rank-item">
+          <div class="rank-num gold">1°</div>
+          <div class="rank-info"><div class="rank-name">Cuadrilla C</div><div class="rank-detail">C003 · Proyecto Centro</div></div>
+          <div class="rank-val" style="color:var(--verde);">11.3 L/100</div>
+        </div>
+        <div class="rank-item">
+          <div class="rank-num silver">2°</div>
+          <div class="rank-info"><div class="rank-name">Cuadrilla B</div><div class="rank-detail">C002 · Proyecto Sur</div></div>
+          <div class="rank-val" style="color:var(--naranja);">11.5 L/100</div>
+        </div>
+        <div class="rank-item">
+          <div class="rank-num bronze">3°</div>
+          <div class="rank-info"><div class="rank-name">Cuadrilla A</div><div class="rank-detail">C001 · Proyecto Norte</div></div>
+          <div class="rank-val" style="color:var(--rojo);">13.6 L/100</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PÁGINA HISTORIAL ===== -->
+    <section id="page-historial" class="page">
+      <div class="filters">
+        <div class="filter-grp">
+          <label>Vehículo</label>
+          <select onchange="filtrarTabla()">
+            <option>Todos</option><option>C001</option><option>C002</option><option>C003</option><option>Moto001</option>
+          </select>
+        </div>
+        <div class="filter-grp">
+          <label>Cuadrilla</label>
+          <select onchange="filtrarTabla()">
+            <option>Todas</option><option>Cuadrilla A</option><option>Cuadrilla B</option><option>Cuadrilla C</option>
+          </select>
+        </div>
+        <div class="filter-grp">
+          <label>Estado</label>
+          <select onchange="filtrarTabla()">
+            <option>Todos</option><option>Normal</option><option>Alto</option><option>Óptimo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Registros del período</div>
+          <span style="font-size:12px; color:var(--texto2);" id="totalRegistros">Mostrando 8 registros</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Fecha</th><th>Vehículo</th><th>Cuadrilla</th><th>Proyecto</th>
+                <th>Litros</th><th>Km recorr.</th><th>L/100km</th><th>Costo $</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tablaBody">
+              <!-- generado por JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PÁGINA CONFIGURACIÓN ===== -->
+    <section id="page-configuracion" class="page">
+      <div class="config-banner">
+        <h2>⚙️ Conectar con Google Sheets</h2>
+        <p>Para mostrar datos reales en el dashboard, conecta tu hoja de Google Sheets. Los datos se actualizarán automáticamente cada vez que ingreses un registro desde la app.</p>
+        <div class="config-steps">
+          <div class="config-step">
+            <div class="step-num">1</div>
+            <div>Abre tu Google Sheet → Archivo → Compartir → Publicar en la web → pestaña "Registros" → CSV → Publicar</div>
+          </div>
+          <div class="config-step">
+            <div class="step-num">2</div>
+            <div>Copia el link generado y pégalo aquí abajo</div>
+          </div>
+          <div class="config-step">
+            <div class="step-num">3</div>
+            <div>Haz clic en "Conectar" — los datos reales reemplazarán los datos de ejemplo</div>
+          </div>
+        </div>
+        <input class="config-input" id="sheetUrl" type="text" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+        <br>
+        <button class="btn-conectar" onclick="conectarSheets()">🔗 Conectar Google Sheets</button>
+        <span id="statusConexion" style="margin-left:12px; font-size:13px;"></span>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Estado de conexión</div></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+          <div>
+            <div style="font-size:12px; color:var(--texto2); margin-bottom:4px;">Fuente de datos</div>
+            <div style="font-size:14px; font-weight:600;" id="statusFuente">📋 Datos de ejemplo</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--texto2); margin-bottom:4px;">Última actualización</div>
+            <div style="font-size:14px; font-weight:600;" id="statusFecha">—</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--texto2); margin-bottom:4px;">Registros cargados</div>
+            <div style="font-size:14px; font-weight:600;" id="statusRegs">8 (demo)</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--texto2); margin-bottom:4px;">Vehículos detectados</div>
+            <div style="font-size:14px; font-weight:600;" id="statusVehs">C001, C002, C003, Moto001</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ── DATOS DE EJEMPLO (se reemplazan al conectar Sheets) ──
+const DEMO_DATA = [
+  { id:'FT-001', fecha:'01/05', vehiculo:'C001', cuadrilla:'Cuadrilla A', proyecto:'Proyecto Norte', litros:38, km:280, costo:53.2, tipo:'Extra' },
+  { id:'FT-002', fecha:'01/05', vehiculo:'C002', cuadrilla:'Cuadrilla B', proyecto:'Proyecto Sur',   litros:30, km:260, costo:42.0, tipo:'Extra' },
+  { id:'FT-003', fecha:'02/05', vehiculo:'C001', cuadrilla:'Cuadrilla A', proyecto:'Proyecto Norte', litros:42, km:305, costo:58.8, tipo:'Extra' },
+  { id:'FT-004', fecha:'02/05', vehiculo:'C003', cuadrilla:'Cuadrilla C', proyecto:'Proyecto Centro',litros:27, km:250, costo:37.8, tipo:'Extra' },
+  { id:'FT-005', fecha:'03/05', vehiculo:'Moto001',cuadrilla:'Técnico Móvil',proyecto:'Multi-proyecto',litros:11, km:165, costo:15.4, tipo:'Extra' },
+  { id:'FT-006', fecha:'03/05', vehiculo:'C002', cuadrilla:'Cuadrilla B', proyecto:'Proyecto Sur',   litros:33, km:275, costo:46.2, tipo:'Extra' },
+  { id:'FT-007', fecha:'04/05', vehiculo:'C001', cuadrilla:'Cuadrilla A', proyecto:'Proyecto Norte', litros:45, km:320, costo:63.0, tipo:'Extra' },
+  { id:'FT-008', fecha:'04/05', vehiculo:'C003', cuadrilla:'Cuadrilla C', proyecto:'Proyecto Centro',litros:29, km:262, costo:40.6, tipo:'Extra' },
+];
+
+const COLORES = { C001:'#2563a8', C002:'#0f6e56', C003:'#d97706', Moto001:'#9333ea' };
+const COLORES_CUAD = ['#2563a8','#0f6e56','#d97706'];
+const DIAS = ['1','3','5','7','9','11','13','15','17','19','21','23','25','27','29','31'];
+
+let chartDiario, chartDonut, chartMensual, chartVehBar, chartEfic, chartCuadrillas;
+
+// ── NAVEGACIÓN ──
+function navegar(pagina, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + pagina).classList.add('active');
+  if (el) el.classList.add('active');
+  const titulos = { resumen:'Resumen general', vehiculos:'Análisis por vehículo', cuadrillas:'Análisis por cuadrilla', historial:'Historial de registros', configuracion:'Configuración' };
+  document.getElementById('topbarTitle').textContent = titulos[pagina] || pagina;
+  if (pagina === 'resumen') initCharts();
+  if (pagina === 'vehiculos') initVehCharts();
+  if (pagina === 'cuadrillas') initCuadCharts();
+  if (pagina === 'historial') renderTabla();
+}
+
+// ── TABLA HISTORIAL ──
+function renderTabla() {
+  const tbody = document.getElementById('tablaBody');
+  tbody.innerHTML = DEMO_DATA.map(r => {
+    const efic = r.km > 0 ? (r.litros / r.km * 100).toFixed(1) : '—';
+    const ef = parseFloat(efic);
+    const estado = ef < 10 ? '<span style="background:#f3e8ff;color:#7e22ce;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Óptimo</span>'
+                 : ef < 12.5 ? '<span style="background:var(--verde-light);color:var(--verde);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Normal</span>'
+                 : '<span style="background:var(--rojo-light);color:var(--rojo);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Alto</span>';
+    return \`<tr>
+      <td style="font-size:11px;color:var(--texto2);">\${r.id}</td>
+      <td>\${r.fecha}</td>
+      <td style="font-weight:600;">\${r.vehiculo}</td>
+      <td>\${r.cuadrilla}</td>
+      <td style="font-size:12px;">\${r.proyecto}</td>
+      <td style="font-weight:600;">\${r.litros} L</td>
+      <td>\${r.km} km</td>
+      <td>\${efic}</td>
+      <td>$\${r.costo.toFixed(2)}</td>
+      <td>\${estado}</td>
+    </tr>\`;
+  }).join('');
+}
+
+// ── CHARTS RESUMEN ──
+function initCharts() {
+  if (chartDiario) chartDiario.destroy();
+  if (chartDonut) chartDonut.destroy();
+  if (chartMensual) chartMensual.destroy();
+
+  const diasData = {
+    C001:    [38,42,39,45,40,43,38,42,41,44,37,43,40,42,39,41],
+    C002:    [30,33,28,35,30,32,29,35,31,33,28,34,30,32,29,33],
+    C003:    [27,29,25,32,27,30,26,31,28,30,25,31,27,29,26,29],
+    Moto001: [11,13,10,14,12,13,11,12,11,13,10,13,11,12,10,12]
+  };
+
+  const legend = document.getElementById('legendDiario');
+  legend.innerHTML = Object.keys(COLORES).map(v =>
+    \`<span class="legend-item"><span class="legend-sq" style="background:\${COLORES[v]};"></span>\${v}</span>\`
+  ).join('');
+
+  chartDiario = new Chart(document.getElementById('chartDiario'), {
+    type: 'line',
+    data: {
+      labels: DIAS,
+      datasets: Object.entries(COLORES).map(([v, c]) => ({
+        label: v, data: diasData[v], borderColor: c, backgroundColor: 'transparent',
+        tension: 0.4, borderWidth: 2, pointRadius: 2
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => v + ' L' } }
+      }
+    }
+  });
+
+  chartDonut = new Chart(document.getElementById('chartDonut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['C001','C002','C003','Moto001'],
+      datasets: [{ data: [296,237,213,101], backgroundColor: Object.values(COLORES), borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { display: true, position: 'right', labels: { font: { size: 12 }, color: '#64748b', boxWidth: 12, boxHeight: 12 } }
+      }
+    }
+  });
+
+  chartMensual = new Chart(document.getElementById('chartMensual'), {
+    type: 'bar',
+    data: {
+      labels: ['Ene','Feb','Mar','Abr','May'],
+      datasets: [
+        { label: 'C001', data: [280,265,290,305,296], backgroundColor: COLORES.C001 },
+        { label: 'C002', data: [220,215,228,245,237], backgroundColor: COLORES.C002 },
+        { label: 'C003', data: [195,200,210,225,213], backgroundColor: COLORES.C003 },
+        { label: 'Moto001', data: [90,88,95,105,101], backgroundColor: COLORES.Moto001 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12 }, color: '#64748b' } },
+        y: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => v + ' L' } }
+      }
+    }
+  });
+}
+
+// ── CHARTS VEHÍCULOS ──
+function initVehCharts() {
+  if (chartVehBar) chartVehBar.destroy();
+  if (chartEfic) chartEfic.destroy();
+
+  chartVehBar = new Chart(document.getElementById('chartVehBar'), {
+    type: 'bar',
+    data: {
+      labels: ['C001','C002','C003','Moto001'],
+      datasets: [{ data: [296,237,213,101], backgroundColor: Object.values(COLORES), borderRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#64748b' } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => v + ' L' } }
+      }
+    }
+  });
+
+  const wrapH = document.getElementById('chartEfic').parentElement;
+  wrapH.style.height = (4 * 50 + 60) + 'px';
+
+  chartEfic = new Chart(document.getElementById('chartEfic'), {
+    type: 'bar',
+    data: {
+      labels: ['C001','C002','C003','Moto001'],
+      datasets: [{ data: [13.5, 11.7, 10.8, 6.5], backgroundColor: ['#dc2626','#d97706','#0f6e56','#7e22ce'], borderRadius: 4, indexAxis: 'y' }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => v + ' L/100' } },
+        y: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#64748b' } }
+      }
+    }
+  });
+}
+
+// ── CHARTS CUADRILLAS ──
+function initCuadCharts() {
+  if (chartCuadrillas) chartCuadrillas.destroy();
+  chartCuadrillas = new Chart(document.getElementById('chartCuadrillas'), {
+    type: 'bar',
+    data: {
+      labels: ['Cuadrilla A','Cuadrilla B','Cuadrilla C'],
+      datasets: [
+        { label: 'Litros', data: [296,237,213], backgroundColor: COLORES_CUAD, borderRadius: 6, yAxisID: 'y' },
+        { label: 'Km recorridos', data: [2180,2060,1890], backgroundColor: 'rgba(0,0,0,0)', borderColor: '#94a3b8', borderWidth: 2, type: 'line', yAxisID: 'y1', tension: 0.3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'top', labels: { font: { size: 12 }, color: '#64748b', boxWidth: 12 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#64748b' } },
+        y: { position: 'left', grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => v + ' L' } },
+        y1: { position: 'right', grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => v + ' km' } }
+      }
+    }
+  });
+}
+
+// ── CONECTAR SHEETS ──
+function conectarSheets() {
+  const url = document.getElementById('sheetUrl').value.trim();
+  if (!url || !url.includes('spreadsheets')) {
+    document.getElementById('statusConexion').textContent = '❌ URL inválido';
+    document.getElementById('statusConexion').style.color = '#dc2626';
+    return;
+  }
+  document.getElementById('statusConexion').textContent = '⏳ Conectando...';
+
+  fetch(url)
+    .then(r => r.text())
+    .then(csv => {
+      const filas = csv.split('\n').filter(f => f.trim());
+      document.getElementById('statusFuente').textContent = '✅ Google Sheets conectado';
+      document.getElementById('statusFecha').textContent = new Date().toLocaleString('es-EC');
+      document.getElementById('statusRegs').textContent = (filas.length - 1) + ' registros';
+      document.getElementById('statusConexion').textContent = '✅ Conectado';
+      document.getElementById('statusConexion').style.color = '#0f6e56';
+    })
+    .catch(() => {
+      document.getElementById('statusConexion').textContent = '❌ Error al conectar. Verifica que el Sheet esté publicado.';
+      document.getElementById('statusConexion').style.color = '#dc2626';
+    });
+}
+
+function cambiarPeriodo(v) { cargarDatos(); }
+function cargarDatos() {
+  const ico = document.getElementById('refreshIco');
+  ico.textContent = '⏳';
+  setTimeout(() => { ico.textContent = '🔄'; }, 800);
+}
+function filtrarTabla() {}
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  renderTabla();
+  initCharts();
+});
+</script>
+</body>
+</html>
